@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MatchPlay</title>
+<style>
+body {
+    font-family: -apple-system, BlinkMacSystemFont;
+    margin: 0;
+    padding: 20px;
+    background: #ffffff;
+}
+
+h1 {
+    text-align: center;
+}
+
+button {
+    padding: 10px 15px;
+    margin: 5px 0;
+    border-radius: 8px;
+    border: none;
+    background: black;
+    color: white;
+}
+
+input {
+    padding: 8px;
+    width: 60px;
+    text-align: center;
+}
+
+.section {
+    margin-bottom: 20px;
+}
+
+.leader {
+    color: green;
+    font-weight: bold;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+td, th {
+    padding: 6px;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+}
+</style>
+</head>
+<body>
+
+<h1>MatchPlay</h1>
+
+<div id="setup" class="section">
+    <h3>Game Setup</h3>
+    Holes:
+    <select id="holes">
+        <option value="9">9</option>
+        <option value="18" selected>18</option>
+    </select>
+    <br><br>
+    Points per hole:
+    <input type="number" id="points" value="2" min="1">
+    <br><br>
+    <div id="players"></div>
+    <button onclick="addPlayer()">Add Player</button>
+    <br><br>
+    <button onclick="startGame()">Start Round</button>
+</div>
+
+<div id="game" style="display:none;">
+    <h3>Score Entry</h3>
+    <div id="scoreTable"></div>
+    <h3>Leaderboard</h3>
+    <div id="leaderboard"></div>
+    <button onclick="saveRound()">Save Round</button>
+</div>
+
+<div id="history" class="section">
+    <h3>History</h3>
+    <div id="historyList"></div>
+</div>
+
+<script>
+let players = [];
+let holes = 18;
+let pointValue = 2;
+
+function addPlayer() {
+    if (players.length >= 4) return;
+    players.push({name: "Player " + (players.length+1), scores: [], total: 0});
+    renderPlayers();
+}
+
+function renderPlayers() {
+    const container = document.getElementById("players");
+    container.innerHTML = "";
+    players.forEach((p, i) => {
+        container.innerHTML += 
+        `<div>
+            <input value="${p.name}" onchange="players[${i}].name=this.value">
+        </div>`;
+    });
+}
+
+function startGame() {
+    holes = parseInt(document.getElementById("holes").value);
+    pointValue = parseInt(document.getElementById("points").value);
+    players.forEach(p => {
+        p.scores = Array(holes).fill(0);
+        p.total = 0;
+    });
+    document.getElementById("setup").style.display = "none";
+    document.getElementById("game").style.display = "block";
+    renderTable();
+}
+
+function renderTable() {
+    let html = "<table><tr><th>Hole</th>";
+    players.forEach(p => html += `<th>${p.name}</th>`);
+    html += "</tr>";
+    
+    for (let h=0; h<holes; h++) {
+        html += `<tr><td>${h+1}</td>`;
+        players.forEach((p,i)=>{
+            html += `<td><input type="number" onchange="updateScore(${i},${h},this.value)"></td>`;
+        });
+        html += "</tr>";
+    }
+    html += "</table>";
+    document.getElementById("scoreTable").innerHTML = html;
+}
+
+function updateScore(playerIndex, holeIndex, value) {
+    players[playerIndex].scores[holeIndex] = parseInt(value);
+    calculateTotals();
+}
+
+function calculateTotals() {
+    players.forEach(p=>p.total=0);
+    for (let h=0; h<holes; h++) {
+        let holeScores = players.map(p=>p.scores[h]);
+        if (holeScores.includes(0)) continue;
+        let lowest = Math.min(...holeScores);
+        let winners = holeScores.filter(s=>s===lowest);
+        if (winners.length !== 1) continue;
+        players.forEach(p=>{
+            if (p.scores[h] === lowest) {
+                p.total += pointValue;
+            } else {
+                p.total -= pointValue;
+            }
+        });
+    }
+    renderLeaderboard();
+}
+
+function renderLeaderboard() {
+    let sorted = [...players].sort((a,b)=>b.total-a.total);
+    let html = "";
+    sorted.forEach((p,i)=>{
+        html += `<div class="${i===0?'leader':''}">
+            ${p.name}: ${p.total}
+        </div>`;
+    });
+    document.getElementById("leaderboard").innerHTML = html;
+}
+
+function saveRound() {
+    let history = JSON.parse(localStorage.getItem("rounds")||"[]");
+    history.push({date:new Date().toLocaleString(), players});
+    localStorage.setItem("rounds", JSON.stringify(history));
+    loadHistory();
+    alert("Round Saved");
+}
+
+function loadHistory() {
+    let history = JSON.parse(localStorage.getItem("rounds")||"[]");
+    let html="";
+    history.forEach(r=>{
+        html += `<div>${r.date}</div>`;
+    });
+    document.getElementById("historyList").innerHTML=html;
+}
+
+addPlayer();
+addPlayer();
+loadHistory();
+</script>
+
+</body>
+</html>
